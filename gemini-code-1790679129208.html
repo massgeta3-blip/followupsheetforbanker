@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Bank Performance System</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f4f7f6; color: #333; }
+        
+        .topbar { background: #1e3a8a; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .user-badge-top { font-size: 13px; background: #1d4ed8; padding: 6px 12px; border-radius: 20px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+        
+        .container { padding: 25px; max-width: 1200px; margin: 0 auto; }
+        
+        .role-panel { display: none; background: #fff; border-radius: 8px; padding: 25px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); margin-bottom: 25px; }
+        .active-panel { display: block; }
+        
+        h2 { color: #1e3a8a; font-size: 20px; margin-bottom: 15px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+        h3 { font-size: 15px; margin: 15px 0 10px 0; color: #374151; }
+
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 12px; font-weight: bold; color: #4b5563; margin-bottom: 4px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 10px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 13px; }
+
+        .btn { padding: 6px 12px; background: #1e3a8a; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .btn:hover { background: #1d4ed8; }
+        .btn-success { background: #10b981; }
+        .btn-danger { background: #ef4444; }
+        .btn-secondary { background: #6b7280; }
+        .btn-outline { background: transparent; border: 1px solid #fff; color: white; }
+        .btn-action { margin-right: 4px; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+        th { background: #f9fafb; font-weight: 600; color: #374151; }
+
+        .badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+        .badge-pending { background: #fef9c3; color: #a16207; }
+        .badge-approved { background: #dcfce7; color: #15803d; }
+        .badge-rejected { background: #fee2e2; color: #b91c1c; }
+        
+        .tab-menu { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; }
+        .tab-btn { padding: 8px 14px; background: #e5e7eb; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 12px; }
+        .tab-btn.active { background: #1e3a8a; color: white; }
+
+        .filter-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
+
+        /* Login Overlay Styles */
+        .login-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.85); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .login-card { background: #ffffff; width: 100%; max-width: 420px; padding: 30px; border-radius: 10px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .login-card h2 { text-align: center; border-bottom: none; color: #1e3a8a; margin-bottom: 6px; font-size: 22px; }
+        .login-card p { text-align: center; color: #64748b; font-size: 13px; margin-bottom: 20px; }
+        .demo-accounts { margin-top: 20px; background: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px; border-radius: 6px; font-size: 11px; color: #475569; }
+        .error-msg { color: #ef4444; font-size: 12px; margin-bottom: 10px; text-align: center; display: none; }
+
+        /* Highlight current logged-in user rank row */
+        .highlight-row { background-color: #eff6ff; font-weight: bold; }
+        .rank-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-weight: bold; font-size: 11px; background: #1e3a8a; color: white; }
+        .kpi-weight-warning { color: #b91c1c; font-size: 12px; margin-top: 8px; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- ================= LOGIN MODAL ================= -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>Core Banking Portal</h2>
+            <p>Please enter your credentials to log in</p>
+            <div id="loginError" class="error-msg">Invalid username or password!</div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" placeholder="e.g. alex_admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn" style="width: 100%; padding: 10px; margin-top: 10px; font-size: 14px;">Sign In</button>
+            </form>
+            <div class="demo-accounts">
+                <strong>Demo Credentials (Password: 123):</strong>
+                <ul style="margin-top: 5px; padding-left: 15px;">
+                    <li><strong>Admin:</strong> alex_admin</li>
+                    <li><strong>Manager:</strong> sarah_mgr</li>
+                    <li><strong>Checker 1:</strong> david_chk (Main Branch)</li>
+                    <li><strong>Checker 2:</strong> robert_chk (Main Branch)</li>
+                    <li><strong>Maker 1:</strong> john_maker (Main Branch)</li>
+                    <li><strong>Maker 2:</strong> alice_maker (Main Branch)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="topbar">
+        <div>
+            <strong>Core Banking Performance Portal</strong>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div id="userBadge" class="user-badge-top">
+                <span id="activeUserName">Not Logged In</span>
+                <span id="activeUserRole" class="badge badge-approved" style="text-transform: uppercase;">None</span>
+            </div>
+            <button class="btn btn-outline" onclick="handleLogout()">Sign Out</button>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <!-- ================= ADMIN ROLE ================= -->
+        <div id="adminPanel" class="role-panel">
+            <h2>Admin Control & Master Configuration Center</h2>
+            <div class="tab-menu">
+                <button class="tab-btn active" onclick="showAdminTab('districtTab', event)">District Management</button>
+                <button class="tab-btn" onclick="showAdminTab('branchTab', event)">Branch Management</button>
+                <button class="tab-btn" onclick="showAdminTab('userTab', event)">User Management</button>
+                <button class="tab-btn" onclick="showAdminTab('perfTab', event)">Performance Metrics</button>
+                <button class="tab-btn" onclick="showAdminTab('kpiTab', event)">KPI & Weights Setup</button>
+            </div>
+
+            <!-- District Management -->
+            <div id="districtTab" class="admin-tab">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="districtFormTitle">Create / Edit District</h3>
+                        <form id="districtForm" onsubmit="handleDistrictSubmit(event)">
+                            <input type="hidden" id="editDistrictId">
+                            <div class="form-group"><label>District Code</label><input type="text" id="districtCodeInput" placeholder="e.g. DST-NORTH" required></div>
+                            <div class="form-group"><label>District Name</label><input type="text" id="districtNameInput" placeholder="e.g. Northern District" required></div>
+                            <button class="btn" id="districtSubmitBtn">Save District</button>
+                            <button type="button" class="btn btn-secondary" id="cancelDistrictBtn" onclick="resetDistrictForm()" style="display:none;">Cancel</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Active Districts</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Name</th><th>Actions</th></tr></thead>
+                            <tbody id="districtTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Branch Management -->
+            <div id="branchTab" class="admin-tab" style="display:none;">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="branchFormTitle">Create / Edit Branch</h3>
+                        <form id="branchForm" onsubmit="handleBranchSubmit(event)">
+                            <input type="hidden" id="editBranchId">
+                            <div class="form-group"><label>Branch Code</label><input type="text" id="branchCodeInput" placeholder="e.g. BR-003" required></div>
+                            <div class="form-group"><label>Branch Name</label><input type="text" id="branchNameInput" placeholder="e.g. Downtown Metro Branch" required></div>
+                            <div class="form-group"><label>District</label>
+                                <select id="branchDistrictSelect"></select>
+                            </div>
+                            <button class="btn" id="branchSubmitBtn">Save Branch</button>
+                            <button type="button" class="btn btn-secondary" id="cancelBranchBtn" onclick="resetBranchForm()" style="display:none;">Cancel</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Active Branches</h3>
+                        <table>
+                            <thead><tr><th>Code</th><th>Name</th><th>District</th><th>Actions</th></tr></thead>
+                            <tbody id="branchTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Management -->
+            <div id="userTab" class="admin-tab" style="display:none;">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="userFormTitle">Create / Edit User Account</h3>
+                        <form id="userForm" onsubmit="handleUserSubmit(event)">
+                            <input type="hidden" id="editUserId">
+                            <div class="form-group"><label>Full Name</label><input type="text" id="userNameInput" placeholder="e.g. Robert Chen" required></div>
+                            <div class="form-group"><label>Username</label><input type="text" id="userUsernameInput" placeholder="e.g. rchen_checker" required></div>
+                            <div class="form-group"><label>Password</label><input type="password" id="userPasswordInput" placeholder="e.g. 123456" required></div>
+                            <div class="form-group"><label>System Role</label>
+                                <select id="userRoleSelect" onchange="toggleUserAssignmentField()">
+                                    <option value="Admin">Admin</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Checker">Checker</option>
+                                    <option value="Maker">Maker</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group" id="userDistrictGroup">
+                                <label>Assigned District</label>
+                                <select id="userDistrictSelect"></select>
+                            </div>
+                            <div class="form-group" id="userBranchGroup" style="display:none;">
+                                <label>Assigned Branch</label>
+                                <select id="userBranchSelect"></select>
+                            </div>
+
+                            <button class="btn" id="userSubmitBtn">Save User Account</button>
+                            <button type="button" class="btn btn-secondary" id="cancelUserBtn" onclick="resetUserForm()" style="display:none;">Cancel</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>User Directory</h3>
+                        <table>
+                            <thead><tr><th>Name</th><th>Username</th><th>Role</th><th>Assigned Scope</th><th>Actions</th></tr></thead>
+                            <tbody id="userDirectoryBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics Management -->
+            <div id="perfTab" class="admin-tab" style="display:none;">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="perfFormTitle">Add / Edit Performance Metric</h3>
+                        <form id="perfForm" onsubmit="handlePerfSubmit(event)">
+                            <input type="hidden" id="editPerfId">
+                            <div class="form-group"><label>Metric Name</label><input type="text" id="perfTitleInput" placeholder="e.g. Customer Satisfaction Index" required></div>
+                            <div class="form-group"><label>Unit of Measurement</label><input type="text" id="perfUnitInput" placeholder="e.g. Score / USD ($) / Count" required></div>
+                            <button class="btn" id="perfSubmitBtn">Save Metric</button>
+                            <button type="button" class="btn btn-secondary" id="cancelPerfBtn" onclick="resetPerfForm()" style="display:none;">Cancel</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Performance Metrics Directory</h3>
+                        <table>
+                            <thead><tr><th>Metric Name</th><th>Unit</th><th>Actions</th></tr></thead>
+                            <tbody id="perfTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI & Weight Setup -->
+            <div id="kpiTab" class="admin-tab" style="display:none;">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="kpiFormTitle">Add / Edit KPI & Weight Allocation</h3>
+                        <form id="kpiForm" onsubmit="handleKpiSubmit(event)">
+                            <input type="hidden" id="editKpiId">
+                            <div class="form-group"><label>KPI Title</label><input type="text" id="kpiTitleInput" placeholder="e.g. Total Deposit Growth" required></div>
+                            <div class="form-group"><label>Category</label><input type="text" id="kpiCategoryInput" placeholder="e.g. Financial" required></div>
+                            <div class="form-group"><label>Weight (%)</label><input type="number" id="kpiWeightInput" placeholder="e.g. 30" required></div>
+                            <button class="btn" id="kpiSubmitBtn">Save KPI Configuration</button>
+                            <button type="button" class="btn btn-secondary" id="cancelKpiBtn" onclick="resetKpiForm()" style="display:none;">Cancel</button>
+                        </form>
+                        <div id="kpiWeightWarn" class="kpi-weight-warning">Notice: Total KPI weights sum to <span id="kpiWeightSum">0</span>% (Target: 100%).</div>
+                    </div>
+                    <div>
+                        <h3>KPI Weight Matrix</h3>
+                        <table>
+                            <thead><tr><th>KPI Title</th><th>Category</th><th>Weight (%)</th><th>Actions</th></tr></thead>
+                            <tbody id="kpiTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================= MANAGER ROLE ================= -->
+        <div id="managerPanel" class="role-panel">
+            <h2>Manager Target Setting & Multi-Dimensional Report Portal</h2>
+            <div class="tab-menu">
+                <button class="tab-btn active" onclick="showManagerTab('targetTab', event)">Target Allocation</button>
+                <button class="tab-btn" onclick="showManagerTab('reportTab', event)">View Report by Branch, KPI & District</button>
+            </div>
+
+            <!-- Target Allocation -->
+            <div id="targetTab" class="mgr-tab">
+                <div class="grid-2">
+                    <div>
+                        <h3 id="mgrTargetFormTitle">1. Assign / Edit Branch-Level Target</h3>
+                        <form id="mgrTargetForm" onsubmit="handleManagerTargetSubmit(event)">
+                            <input type="hidden" id="editMgrTargetId">
+                            <div class="form-group"><label>District</label>
+                                <select id="mgrDistrictSelect" onchange="filterMgrBranchOptions()"></select>
+                            </div>
+                            <div class="form-group"><label>Branch</label>
+                                <select id="mgrBranchSelect"></select>
+                            </div>
+                            <div class="form-group"><label>KPI Metric</label>
+                                <select id="mgrKpiSelect"></select>
+                            </div>
+                            <div class="form-group"><label>Target Amount / Value ($)</label><input type="number" id="mgrTargetVal" placeholder="e.g. 5000000" required></div>
+                            <div class="form-group"><label>Target Period</label><input type="month" id="mgrTargetPeriod" required></div>
+                            <button class="btn" id="mgrTargetSubmitBtn">Push Target to Branch</button>
+                            <button type="button" class="btn btn-secondary" id="cancelMgrTargetBtn" onclick="resetMgrTargetForm()" style="display:none;">Cancel</button>
+                        </form>
+                    </div>
+                    <div>
+                        <h3>Assigned Branch Target Pool</h3>
+                        <table>
+                            <thead><tr><th>District</th><th>Branch</th><th>KPI Metric</th><th>Target Amount</th><th>Actions</th></tr></thead>
+                            <tbody id="managerTargetPoolBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-Dimensional Reports Tab -->
+            <div id="reportTab" class="mgr-tab" style="display:none;">
+                <div class="filter-card">
+                    <h3>Multi-Dimensional Filter Options</h3>
+                    <div class="grid-3" style="margin-top: 10px;">
+                        <div class="form-group">
+                            <label>Filter by District:</label>
+                            <select id="filterReportDistrict" onchange="applyReportFilters()">
+                                <option value="ALL">All Districts</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter by Branch:</label>
+                            <select id="filterReportBranch" onchange="applyReportFilters()">
+                                <option value="ALL">All Branches</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Filter by KPI Metric:</label>
+                            <select id="filterReportKpi" onchange="applyReportFilters()">
+                                <option value="ALL">All KPI Metrics</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <h3>Performance Report Summary</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>District</th>
+                            <th>Branch</th>
+                            <th>KPI Metric</th>
+                            <th>Target Value</th>
+                            <th>Actual Achieved</th>
+                            <th>% Achievement</th>
+                        </tr>
+                    </thead>
+                    <tbody id="multiReportTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ================= CHECKER ROLE ================= -->
+        <div id="checkerPanel" class="role-panel">
+            <h2>Checker Operational Allocation & Verification</h2>
+            
+            <div class="grid-2" style="margin-bottom: 25px;">
+                <div>
+                    <h3>1. Redistribute Branch Targets to Staff (Makers)</h3>
+                    <form onsubmit="handleCheckerRedistribute(event)">
+                        <div class="form-group"><label>Available Target Pool (District - Branch - KPI)</label>
+                            <select id="checkerPoolSelect"></select>
+                        </div>
+                        <div class="form-group"><label>Assignee Staff Member (Maker)</label>
+                            <select id="checkerMakerSelect"></select>
+                        </div>
+                        <div class="form-group"><label>Allocated Target Value ($)</label><input type="number" id="checkerAllocVal" placeholder="e.g. 2500000" required></div>
+                        <button class="btn">Assign Target Segment</button>
+                    </form>
+                </div>
+
+                <!-- Checker Peer Leaderboard / Ranking within Branch -->
+                <div>
+                    <h3>2. Checker Verification Rank (Branch Leaderboard)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Checker Name</th>
+                                <th>Branch</th>
+                                <th>Authorized Entries</th>
+                                <th>Total Verified Vol ($)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checkerRankTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h3>3. Authorize Daily Performance Submissions</h3>
+            <table>
+                <thead>
+                    <tr><th>Entry ID</th><th>District</th><th>Branch</th><th>Maker Staff</th><th>KPI Metric</th><th>Daily Entry</th><th>Date</th><th>Actions</th></tr>
+                </thead>
+                <tbody id="checkerAuthTable"></tbody>
+            </table>
+        </div>
+
+        <!-- ================= MAKER ROLE ================= -->
+        <div id="makerPanel" class="role-panel">
+            <h2>Maker Entry & Individual Target Dashboard</h2>
+            <div class="grid-2">
+                <div>
+                    <h3>1. Log Daily Performance Entry</h3>
+                    <form onsubmit="handleMakerSubmit(event)">
+                        <div class="form-group"><label>Logged By Staff</label>
+                            <input type="text" id="makerUserDisplay" readonly style="background-color: #e5e7eb; cursor: not-allowed;">
+                        </div>
+                        <div class="form-group"><label>Date</label><input type="date" id="makerDateInput" required></div>
+                        <div class="form-group"><label>Assigned KPI Target</label>
+                            <select id="makerKpiSelect"></select>
+                        </div>
+                        <div class="form-group"><label>Today's Achieved Value ($)</label><input type="number" id="makerValueInput" placeholder="e.g. 25000" required></div>
+                        <button class="btn">Submit for Approval</button>
+                    </form>
+
+                    <!-- Maker Branch Ranking Table -->
+                    <h3 style="margin-top: 25px;">2. Branch Maker Leaderboard (My Rank)</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Maker Name</th>
+                                <th>Branch</th>
+                                <th>Approved Total ($)</th>
+                                <th>Avg Achievement</th>
+                            </tr>
+                        </thead>
+                        <tbody id="makerRankTableBody"></tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3>3. My Performance Overview</h3>
+                    <table>
+                        <thead><tr><th>District</th><th>Branch</th><th>Assigned KPI</th><th>Target</th><th>Actual</th><th>% Complete</th></tr></thead>
+                        <tbody id="makerStatusTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Default Master Data Stores
+        const defaultDistrictList = [
+            { id: 1, code: "DST-01", name: "Capital District" },
+            { id: 2, code: "DST-02", name: "Western District" }
+        ];
+
+        const defaultBranchList = [
+            { id: 1, code: "BR-001", name: "Main Branch", district: "Capital District" },
+            { id: 2, code: "BR-002", name: "Westside Branch", district: "Western District" }
+        ];
+
+        const defaultUserList = [
+            { id: 1, name: "Alexander Wright", username: "alex_admin", password: "123", role: "Admin", district: "Capital District", branch: "" },
+            { id: 2, name: "Sarah Jenkins", username: "sarah_mgr", password: "123", role: "Manager", district: "Capital District", branch: "" },
+            { id: 3, name: "David Kim", username: "david_chk", password: "123", role: "Checker", district: "", branch: "Main Branch" },
+            { id: 4, name: "Robert Chen", username: "robert_chk", password: "123", role: "Checker", district: "", branch: "Main Branch" },
+            { id: 5, name: "John Smith", username: "john_maker", password: "123", role: "Maker", district: "", branch: "Main Branch" },
+            { id: 6, name: "Alice Walker", username: "alice_maker", password: "123", role: "Maker", district: "", branch: "Main Branch" }
+        ];
+
+        const defaultPerfList = [
+            { id: 1, title: "Deposit Growth Ratio", unit: "USD ($)" },
+            { id: 2, title: "Account Acquisition Target", unit: "Units" }
+        ];
+
+        const defaultKpiList = [
+            { id: 1, title: "Total Deposit Growth", category: "Financial", weight: 35 },
+            { id: 2, title: "Loan Disbursement Target", category: "Financial", weight: 30 },
+            { id: 3, title: "New Accounts Opened", category: "Retail", weight: 35 }
+        ];
+
+        const defaultPerformanceReportData = [
+            { id: 1, district: "Capital District", branch: "Main Branch", kpi: "Total Deposit Growth", target: 10000000, actual: 7450000 },
+            { id: 2, district: "Capital District", branch: "Main Branch", kpi: "Loan Disbursement Target", target: 5000000, actual: 3900000 },
+            { id: 3, district: "Western District", branch: "Westside Branch", kpi: "Total Deposit Growth", target: 8000000, actual: 6100000 },
+            { id: 4, district: "Western District", branch: "Westside Branch", kpi: "New Accounts Opened", target: 500, actual: 410 }
+        ];
+
+        const defaultSubmissions = [
+            { id: 801, district: "Capital District", branch: "Main Branch", maker: "John Smith", kpi: "Total Deposit Growth", value: 150000, date: "2026-09-14", status: "Pending", approvedBy: "" },
+            { id: 802, district: "Capital District", branch: "Main Branch", maker: "John Smith", kpi: "Total Deposit Growth", value: 500000, date: "2026-09-12", status: "Approved", approvedBy: "David Kim" },
+            { id: 803, district: "Capital District", branch: "Main Branch", maker: "Alice Walker", kpi: "Total Deposit Growth", value: 800000, date: "2026-09-13", status: "Approved", approvedBy: "Robert Chen" },
+            { id: 804, district: "Capital District", branch: "Main Branch", maker: "Alice Walker", kpi: "Loan Disbursement Target", value: 300000, date: "2026-09-14", status: "Approved", approvedBy: "David Kim" }
+        ];
+
+        const defaultMakerAllocations = [
+            { id: 1, maker: "John Smith", kpi: "Total Deposit Growth", district: "Capital District", branch: "Main Branch", target: 2500000 },
+            { id: 2, maker: "Alice Walker", kpi: "Total Deposit Growth", district: "Capital District", branch: "Main Branch", target: 3000000 },
+            { id: 3, maker: "Alice Walker", kpi: "Loan Disbursement Target", district: "Capital District", branch: "Main Branch", target: 1500000 }
+        ];
+
+        // State variables with LocalStorage recovery
+        let currentUser = null;
+        let districtList = JSON.parse(localStorage.getItem('bank_districts')) || defaultDistrictList;
+        let branchList = JSON.parse(localStorage.getItem('bank_branches')) || defaultBranchList;
+        let userList = JSON.parse(localStorage.getItem('bank_users')) || defaultUserList;
+        let perfList = JSON.parse(localStorage.getItem('bank_perf')) || defaultPerfList;
+        let kpiList = JSON.parse(localStorage.getItem('bank_kpis')) || defaultKpiList;
+        let performanceReportData = JSON.parse(localStorage.getItem('bank_reports')) || defaultPerformanceReportData;
+        let submissions = JSON.parse(localStorage.getItem('bank_submissions')) || defaultSubmissions;
+        let makerAllocations = JSON.parse(localStorage.getItem('bank_allocations')) || defaultMakerAllocations;
+
+        function saveStateToStorage() {
+            localStorage.setItem('bank_districts', JSON.stringify(districtList));
+            localStorage.setItem('bank_branches', JSON.stringify(branchList));
+            localStorage.setItem('bank_users', JSON.stringify(userList));
+            localStorage.setItem('bank_perf', JSON.stringify(perfList));
+            localStorage.setItem('bank_kpis', JSON.stringify(kpiList));
+            localStorage.setItem('bank_reports', JSON.stringify(performanceReportData));
+            localStorage.setItem('bank_submissions', JSON.stringify(submissions));
+            localStorage.setItem('bank_allocations', JSON.stringify(makerAllocations));
+        }
+
+        // --- AUTHENTICATION ENGINE ---
+        function handleLogin(e) {
+            e.preventDefault();
+            const usernameInput = document.getElementById("loginUsername").value.trim();
+            const passwordInput = document.getElementById("loginPassword").value.trim();
+            const errorElement = document.getElementById("loginError");
+
+            const foundUser = userList.find(u => u.username === usernameInput && u.password === passwordInput);
+
+            if (foundUser) {
+                currentUser = foundUser;
+                errorElement.style.display = "none";
+                document.getElementById("loginOverlay").style.display = "none";
+                document.getElementById("loginForm").reset();
+                
+                updateUserDisplay();
+                switchRoleView(currentUser.role);
+                syncSystemState();
+            } else {
+                errorElement.style.display = "block";
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById("activeUserName").textContent = "Not Logged In";
+            document.getElementById("activeUserRole").textContent = "None";
+            
+            document.querySelectorAll(".role-panel").forEach(p => p.classList.remove("active-panel"));
+            document.getElementById("loginOverlay").style.display = "flex";
+        }
+
+        function updateUserDisplay() {
+            if (currentUser) {
+                document.getElementById("activeUserName").textContent = currentUser.name;
+                document.getElementById("activeUserRole").textContent = currentUser.role;
+            }
+        }
+
+        function switchRoleView(role) {
+            document.querySelectorAll(".role-panel").forEach(p => p.classList.remove("active-panel"));
+            
+            if (role === "Admin") document.getElementById("adminPanel").classList.add("active-panel");
+            else if (role === "Manager") document.getElementById("managerPanel").classList.add("active-panel");
+            else if (role === "Checker") document.getElementById("checkerPanel").classList.add("active-panel");
+            else if (role === "Maker") document.getElementById("makerPanel").classList.add("active-panel");
+        }
+
+        // Navigation Tabs
+        function showAdminTab(tabId, evt) {
+            document.querySelectorAll(".admin-tab").forEach(t => t.style.display = "none");
+            document.getElementById(tabId).style.display = "block";
+            const tabs = evt.target.parentElement.querySelectorAll(".tab-btn");
+            tabs.forEach(btn => btn.classList.remove("active"));
+            evt.target.classList.add("active");
+        }
+
+        function showManagerTab(tabId, evt) {
+            document.querySelectorAll(".mgr-tab").forEach(t => t.style.display = "none");
+            document.getElementById(tabId).style.display = "block";
+            const tabs = evt.target.parentElement.querySelectorAll(".tab-btn");
+            tabs.forEach(btn => btn.classList.remove("active"));
+            evt.target.classList.add("active");
+        }
+
+        // --- MASTER DATA SYNC ---
+        function syncSystemState() {
+            renderDistricts();
+            renderBranches();
+            renderUsers();
+            renderPerfMetrics();
+            renderKPIs();
+            renderManagerTargetPool();
+            renderReportFilters();
+            renderManagerReports();
+            renderCheckerPools();
+            renderCheckerAuthTable();
+            renderCheckerRankings();
+            renderMakerDashboards();
+            saveStateToStorage();
+        }
+
+        // ================= ADMIN CONTROLLERS =================
+        function renderDistricts() {
+            const body = document.getElementById("districtTableBody");
+            body.innerHTML = districtList.map(d => `
+                <tr>
+                    <td>${d.code}</td>
+                    <td>${d.name}</td>
+                    <td>
+                        <button class="btn btn-action" onclick="editDistrict(${d.id})">Edit</button>
+                        <button class="btn btn-danger btn-action" onclick="deleteDistrict(${d.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const userDistSelect = document.getElementById("userDistrictSelect");
+            const branchDistSelect = document.getElementById("branchDistrictSelect");
+            const mgrDistSelect = document.getElementById("mgrDistrictSelect");
+
+            const opts = districtList.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            userDistSelect.innerHTML = opts;
+            branchDistSelect.innerHTML = opts;
+            mgrDistSelect.innerHTML = opts;
+        }
+
+        function handleDistrictSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById("editDistrictId").value;
+            const code = document.getElementById("districtCodeInput").value.trim();
+            const name = document.getElementById("districtNameInput").value.trim();
+
+            if (id) {
+                const item = districtList.find(d => d.id == id);
+                item.code = code; item.name = name;
+            } else {
+                districtList.push({ id: Date.now(), code, name });
+            }
+            resetDistrictForm();
+            syncSystemState();
+        }
+
+        function editDistrict(id) {
+            const item = districtList.find(d => d.id == id);
+            document.getElementById("editDistrictId").value = item.id;
+            document.getElementById("districtCodeInput").value = item.code;
+            document.getElementById("districtNameInput").value = item.name;
+            document.getElementById("districtFormTitle").textContent = "Edit District";
+            document.getElementById("districtSubmitBtn").textContent = "Update District";
+            document.getElementById("cancelDistrictBtn").style.display = "inline-block";
+        }
+
+        function resetDistrictForm() {
+            document.getElementById("editDistrictId").value = "";
+            document.getElementById("districtForm").reset();
+            document.getElementById("districtFormTitle").textContent = "Create / Edit District";
+            document.getElementById("districtSubmitBtn").textContent = "Save District";
+            document.getElementById("cancelDistrictBtn").style.display = "none";
+        }
+
+        function deleteDistrict(id) {
+            districtList = districtList.filter(d => d.id != id);
+            syncSystemState();
+        }
+
+        function renderBranches() {
+            const body = document.getElementById("branchTableBody");
+            body.innerHTML = branchList.map(b => `
+                <tr>
+                    <td>${b.code}</td>
+                    <td>${b.name}</td>
+                    <td>${b.district}</td>
+                    <td>
+                        <button class="btn btn-action" onclick="editBranch(${b.id})">Edit</button>
+                        <button class="btn btn-danger btn-action" onclick="deleteBranch(${b.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            const userBranchSelect = document.getElementById("userBranchSelect");
+            userBranchSelect.innerHTML = branchList.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+            filterMgrBranchOptions();
+        }
+
+        function handleBranchSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById("editBranchId").value;
+            const code = document.getElementById("branchCodeInput").value.trim();
+            const name = document.getElementById("branchNameInput").value.trim();
+            const district = document.getElementById("branchDistrictSelect").value;
+
+            if (id) {
+                const item = branchList.find(b => b.id == id);
+                item.code = code; item.name = name; item.district = district;
+            } else {
+                branchList.push({ id: Date.now(), code, name, district });
+            }
+            resetBranchForm();
+            syncSystemState();
+        }
+
+        function editBranch(id) {
+            const item = branchList.find(b => b.id == id);
+            document.getElementById("editBranchId").value = item.id;
+            document.getElementById("branchCodeInput").value = item.code;
+            document.getElementById("branchNameInput").value = item.name;
+            document.getElementById("branchDistrictSelect").value = item.district;
+            document.getElementById("branchFormTitle").textContent = "Edit Branch";
+            document.getElementById("branchSubmitBtn").textContent = "Update Branch";
+            document.getElementById("cancelBranchBtn").style.display = "inline-block";
+        }
+
+        function resetBranchForm() {
+            document.getElementById("editBranchId").value = "";
+            document.getElementById("branchForm").reset();
+            document.getElementById("branchFormTitle").textContent = "Create / Edit Branch";
+            document.getElementById("branchSubmitBtn").textContent = "Save Branch";
+            document.getElementById("cancelBranchBtn").style.display = "none";
+        }
+
+        function deleteBranch(id) {
+            branchList = branchList.filter(b => b.id != id);
+            syncSystemState();
+        }
+
+        function toggleUserAssignmentField() {
+            const role = document.getElementById("userRoleSelect").value;
+            const distGroup = document.getElementById("userDistrictGroup");
+            const branchGroup = document.getElementById("userBranchGroup");
+
+            if (role === "Manager" || role === "Admin") {
+                distGroup.style.display = "block";
+                branchGroup.style.display = "none";
+            } else {
+                distGroup.style.display = "none";
+                branchGroup.style.display = "block";
+            }
+        }
+
+        function renderUsers() {
+            const body = document.getElementById("userDirectoryBody");
+            body.innerHTML = userList.map(u => `
+                <tr>
+                    <td>${u.name}</td>
+                    <td>${u.username}</td>
+                    <td><span class="badge badge-approved">${u.role}</span></td>
+                    <td>${u.role === 'Manager' || u.role === 'Admin' ? u.district : u.branch}</td>
+                    <td>
+                        <button class="btn btn-action" onclick="editUser(${u.id})">Edit</button>
+                        <button class="btn btn-danger btn-action" onclick="deleteUser(${u.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function handleUserSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById("editUserId").value;
+            const name = document.getElementById("userNameInput").value.trim();
+            const username = document.getElementById("userUsernameInput").value.trim();
+            const password = document.getElementById("userPasswordInput").value.trim();
+            const role = document.getElementById("userRoleSelect").value;
+            const district = document.getElementById("userDistrictSelect").value;
+            const branch = document.getElementById("userBranchSelect").value;
+
+            if (id) {
+                const u = userList.find(item => item.id == id);
+                u.name = name; u.username = username; u.password = password; u.role = role;
+                u.district = (role === 'Manager' || role === 'Admin') ? district : '';
+                u.branch = (role === 'Checker' || role === 'Maker') ? branch : '';
+            } else {
+                userList.push({
+                    id: Date.now(), name, username, password, role,
+                    district: (role === 'Manager' || role === 'Admin') ? district : '',
+                    branch: (role === 'Checker' || role === 'Maker') ? branch : ''
+                });
+            }
+            resetUserForm();
+            syncSystemState();
+        }
+
+        function editUser(id) {
+            const u = userList.find(item => item.id == id);
+            document.getElementById("editUserId").value = u.id;
+            document.getElementById("userNameInput").value = u.name;
+            document.getElementById("userUsernameInput").value = u.username;
+            document.getElementById("userPasswordInput").value = u.password;
+            document.getElementById("userRoleSelect").value = u.role;
+            toggleUserAssignmentField();
+            if (u.district) document.getElementById("userDistrictSelect").value = u.district;
+            if (u.branch) document.getElementById("userBranchSelect").value = u.branch;
+
+            document.getElementById("userFormTitle").textContent = "Edit User Account";
+            document.getElementById("userSubmitBtn").textContent = "Update User";
+            document.getElementById("cancelUserBtn").style.display = "inline-block";
+        }
+
+        function resetUserForm() {
+            document.getElementById("editUserId").value = "";
+            document.getElementById("userForm").reset();
+            document.getElementById("userFormTitle").textContent = "Create / Edit User Account";
+            document.getElementById("userSubmitBtn").textContent = "Save User Account";
+            document.getElementById("cancelUserBtn").style.display = "none";
+            toggleUserAssignmentField();
+        }
+
+        function deleteUser(id) {
+            userList = userList.filter(u => u.id != id);
+            syncSystemState();
+        }
+
+        function renderPerfMetrics() {
+            const body = document.getElementById("perfTableBody");
+            body.innerHTML = perfList.map(p => `
+                <tr>
+                    <td>${p.title}</td>
+                    <td>${p.unit}</td>
+                    <td>
+                        <button class="btn btn-action" onclick="editPerf(${p.id})">Edit</button>
+                        <button class="btn btn-danger btn-action" onclick="deletePerf(${p.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function handlePerfSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById("editPerfId").value;
+            const title = document.getElementById("perfTitleInput").value.trim();
+            const unit = document.getElementById("perfUnitInput").value.trim();
+
+            if (id) {
+                const item = perfList.find(p => p.id == id);
+                item.title = title; item.unit = unit;
+            } else {
+                perfList.push({ id: Date.now(), title, unit });
+            }
+            resetPerfForm();
+            syncSystemState();
+        }
+
+        function editPerf(id) {
+            const item = perfList.find(p => p.id == id);
+            document.getElementById("editPerfId").value = item.id;
+            document.getElementById("perfTitleInput").value = item.title;
+            document.getElementById("perfUnitInput").value = item.unit;
+            document.getElementById("perfFormTitle").textContent = "Edit Performance Metric";
+            document.getElementById("perfSubmitBtn").textContent = "Update Metric";
+            document.getElementById("cancelPerfBtn").style.display = "inline-block";
+        }
+
+        function resetPerfForm() {
+            document.getElementById("editPerfId").value = "";
+            document.getElementById("perfForm").reset();
+            document.getElementById("perfFormTitle").textContent = "Add / Edit Performance Metric";
+            document.getElementById("perfSubmitBtn").textContent = "Save Metric";
+            document.getElementById("cancelPerfBtn").style.display = "none";
+        }
+
+        function deletePerf(id) {
+            perfList = perfList.filter(p => p.id != id);
+            syncSystemState();
+        }
+
+        function renderKPIs() {
+            const body = document.getElementById("kpiTableBody");
+            let weightSum = 0;
+            body.innerHTML = kpiList.map(k => {
+                weightSum += Number(k.weight);
+                return `
+                    <tr>
+                        <td>${k.title}</td>
+                        <td>${k.category}</td>
+                        <td>${k.weight}%</td>
+                        <td>
+                            <button class="btn btn-action" onclick="editKpi(${k.id})">Edit</button>
+                            <button class="btn btn-danger btn-action" onclick="deleteKpi(${k.id})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const mgrKpiSelect = document.getElementById("mgrKpiSelect");
+            mgrKpiSelect.innerHTML = kpiList.map(k => `<option value="${k.title}">${k.title}</option>`).join('');
+
+            const warnElem = document.getElementById("kpiWeightWarn");
+            document.getElementById("kpiWeightSum").textContent = weightSum;
+            if (weightSum !== 100) warnElem.style.display = "block";
+            else warnElem.style.display = "none";
+        }
+
+        function handleKpiSubmit(e) {
+            e.preventDefault();
+            const id = document.getElementById("editKpiId").value;
+            const title = document.getElementById("kpiTitleInput").value.trim();
+            const category = document.getElementById("kpiCategoryInput").value.trim();
+            const weight = Number(document.getElementById("kpiWeightInput").value);
+
+            if (id) {
+                const item = kpiList.find(k => k.id == id);
+                item.title = title; item.category = category; item.weight = weight;
+            } else {
+                kpiList.push({ id: Date.now(), title, category, weight });
+            }
+            resetKpiForm();
+            syncSystemState();
+        }
+
+        function editKpi(id) {
+            const item = kpiList.find(k => k.id == id);
+            document.getElementById("editKpiId").value = item.id;
+            document.getElementById("kpiTitleInput").value = item.title;
+            document.getElementById("kpiCategoryInput").value = item.category;
+            document.getElementById("kpiWeightInput").value = item.weight;
+            document.getElementById("kpiFormTitle").textContent = "Edit KPI Weight Allocation";
+            document.getElementById("kpiSubmitBtn").textContent = "Update KPI";
+            document.getElementById("cancelKpiBtn").style.display = "inline-block";
+        }
+
+        function resetKpiForm() {
+            document.getElementById("editKpiId").value = "";
+            document.getElementById("kpiForm").reset();
+            document.getElementById("kpiFormTitle").textContent = "Add / Edit KPI & Weight Allocation";
+            document.getElementById("kpiSubmitBtn").textContent = "Save KPI Configuration";
+            document.getElementById("cancelKpiBtn").style.display = "none";
+        }
+
+        function deleteKpi(id) {
+            kpiList = kpiList.filter(k => k.id != id);
+            syncSystemState();
+        }
+
+        // ================= MANAGER CONTROLLERS =================
+        function filterMgrBranchOptions() {
+            const dist = document.getElementById("mgrDistrictSelect").value;
+            const mgrBranchSelect = document.getElementById("mgrBranchSelect");
+            const filtered = branchList.filter(b => b.district === dist);
+            mgrBranchSelect.innerHTML = filtered.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+        }
+
+        function handleManagerTargetSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById("editMgrTargetId").value;
+            const district = document.getElementById("mgrDistrictSelect").value;
+            const branch = document.getElementById("mgrBranchSelect").value;
+            const kpi = document.getElementById("mgrKpiSelect").value;
+            const targetVal = Number(document.getElementById("mgrTargetVal").value);
+
+            if (editId) {
+                // Update existing item in performance report data
+                const reportItem = performanceReportData.find(r => r.id == editId);
+                if (reportItem) {
+                    reportItem.district = district;
+                    reportItem.branch = branch;
+                    reportItem.kpi = kpi;
+                    reportItem.target = targetVal;
+                }
+            } else {
+                // Add new item or update existing target matching same scope
+                const existing = performanceReportData.find(r => r.district === district && r.branch === branch && r.kpi === kpi);
+                if (existing) {
+                    existing.target = targetVal;
+                } else {
+                    performanceReportData.push({
+                        id: Date.now(),
+                        district, branch, kpi, target: targetVal, actual: 0
+                    });
+                }
+            }
+
+            resetMgrTargetForm();
+            syncSystemState();
+        }
+
+        function editManagerTarget(id) {
+            const item = performanceReportData.find(r => r.id == id);
+            if (!item) return;
+
+            document.getElementById("editMgrTargetId").value = item.id;
+            document.getElementById("mgrDistrictSelect").value = item.district;
+            filterMgrBranchOptions();
+            document.getElementById("mgrBranchSelect").value = item.branch;
+            document.getElementById("mgrKpiSelect").value = item.kpi;
+            document.getElementById("mgrTargetVal").value = item.target;
+
+            document.getElementById("mgrTargetFormTitle").textContent = "Edit Branch-Level Target";
+            document.getElementById("mgrTargetSubmitBtn").textContent = "Update Branch Target";
+            document.getElementById("cancelMgrTargetBtn").style.display = "inline-block";
+        }
+
+        function resetMgrTargetForm() {
+            document.getElementById("editMgrTargetId").value = "";
+            document.getElementById("mgrTargetForm").reset();
+            document.getElementById("mgrTargetFormTitle").textContent = "1. Assign / Edit Branch-Level Target";
+            document.getElementById("mgrTargetSubmitBtn").textContent = "Push Target to Branch";
+            document.getElementById("cancelMgrTargetBtn").style.display = "none";
+        }
+
+        function deleteManagerTarget(id) {
+            performanceReportData = performanceReportData.filter(r => r.id != id);
+            syncSystemState();
+        }
+
+        function renderManagerTargetPool() {
+            const body = document.getElementById("managerTargetPoolBody");
+            body.innerHTML = performanceReportData.map(r => `
+                <tr>
+                    <td>${r.district}</td>
+                    <td>${r.branch}</td>
+                    <td>${r.kpi}</td>
+                    <td><strong>$${r.target.toLocaleString()}</strong></td>
+                    <td>
+                        <button class="btn btn-action" onclick="editManagerTarget(${r.id})">Edit</button>
+                        <button class="btn btn-danger btn-action" onclick="deleteManagerTarget(${r.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderReportFilters() {
+            const dSelect = document.getElementById("filterReportDistrict");
+            const bSelect = document.getElementById("filterReportBranch");
+            const kSelect = document.getElementById("filterReportKpi");
+
+            dSelect.innerHTML = `<option value="ALL">All Districts</option>` + districtList.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            bSelect.innerHTML = `<option value="ALL">All Branches</option>` + branchList.map(b => `<option value="${b.name}">${b.name}</option>`).join('');
+            kSelect.innerHTML = `<option value="ALL">All KPI Metrics</option>` + kpiList.map(k => `<option value="${k.title}">${k.title}</option>`).join('');
+        }
+
+        function applyReportFilters() {
+            renderManagerReports();
+        }
+
+        function renderManagerReports() {
+            const dVal = document.getElementById("filterReportDistrict").value;
+            const bVal = document.getElementById("filterReportBranch").value;
+            const kVal = document.getElementById("filterReportKpi").value;
+
+            const filtered = performanceReportData.filter(r => {
+                const matchD = (dVal === 'ALL' || r.district === dVal);
+                const matchB = (bVal === 'ALL' || r.branch === bVal);
+                const matchK = (kVal === 'ALL' || r.kpi === kVal);
+                return matchD && matchB && matchK;
+            });
+
+            const body = document.getElementById("multiReportTableBody");
+            body.innerHTML = filtered.map(r => {
+                const pct = r.target > 0 ? ((r.actual / r.target) * 100).toFixed(1) : 0;
+                let badgeClass = "badge-pending";
+                if (pct >= 100) badgeClass = "badge-approved";
+                else if (pct < 50) badgeClass = "badge-rejected";
+
+                return `
+                    <tr>
+                        <td>${r.district}</td>
+                        <td>${r.branch}</td>
+                        <td>${r.kpi}</td>
+                        <td>$${r.target.toLocaleString()}</td>
+                        <td>$${r.actual.toLocaleString()}</td>
+                        <td><span class="badge ${badgeClass}">${pct}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= CHECKER CONTROLLERS =================
+        function renderCheckerPools() {
+            const poolSelect = document.getElementById("checkerPoolSelect");
+            let filteredPool = performanceReportData;
+
+            if (currentUser && currentUser.role === "Checker") {
+                filteredPool = performanceReportData.filter(r => r.branch === currentUser.branch);
+            }
+
+            poolSelect.innerHTML = filteredPool.map(r => `<option value="${r.id}">${r.district} - ${r.branch} - ${r.kpi} ($${r.target.toLocaleString()})</option>`).join('');
+
+            const makerSelect = document.getElementById("checkerMakerSelect");
+            let makers = userList.filter(u => u.role === "Maker");
+            if (currentUser && currentUser.role === "Checker") {
+                makers = makers.filter(u => u.branch === currentUser.branch);
+            }
+            makerSelect.innerHTML = makers.map(m => `<option value="${m.name}">${m.name} (${m.branch})</option>`).join('');
+        }
+
+        function handleCheckerRedistribute(e) {
+            e.preventDefault();
+            const poolId = document.getElementById("checkerPoolSelect").value;
+            const makerName = document.getElementById("checkerMakerSelect").value;
+            const val = Number(document.getElementById("checkerAllocVal").value);
+
+            const poolItem = performanceReportData.find(r => r.id == poolId);
+            if (!poolItem) return;
+
+            const existingAlloc = makerAllocations.find(a => a.maker === makerName && a.kpi === poolItem.kpi);
+            if (existingAlloc) {
+                existingAlloc.target += val;
+            } else {
+                makerAllocations.push({
+                    id: Date.now(),
+                    maker: makerName,
+                    kpi: poolItem.kpi,
+                    district: poolItem.district,
+                    branch: poolItem.branch,
+                    target: val
+                });
+            }
+
+            alert(`Successfully allocated $${val.toLocaleString()} to ${makerName}`);
+            document.getElementById("checkerAllocVal").value = "";
+            syncSystemState();
+        }
+
+        function renderCheckerAuthTable() {
+            const body = document.getElementById("checkerAuthTable");
+            let pending = submissions.filter(s => s.status === "Pending");
+
+            if (currentUser && currentUser.role === "Checker") {
+                pending = pending.filter(s => s.branch === currentUser.branch);
+            }
+
+            body.innerHTML = pending.map(s => `
+                <tr>
+                    <td>#${s.id}</td>
+                    <td>${s.district}</td>
+                    <td>${s.branch}</td>
+                    <td>${s.maker}</td>
+                    <td>${s.kpi}</td>
+                    <td><strong>$${s.value.toLocaleString()}</strong></td>
+                    <td>${s.date}</td>
+                    <td>
+                        <button class="btn btn-success btn-action" onclick="approveSubmission(${s.id})">Approve</button>
+                        <button class="btn btn-danger btn-action" onclick="rejectSubmission(${s.id})">Reject</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function approveSubmission(id) {
+            const sub = submissions.find(s => s.id == id);
+            if (sub) {
+                sub.status = "Approved";
+                sub.approvedBy = currentUser ? currentUser.name : "Checker";
+
+                const rep = performanceReportData.find(r => r.district === sub.district && r.branch === sub.branch && r.kpi === sub.kpi);
+                if (rep) {
+                    rep.actual += sub.value;
+                }
+                syncSystemState();
+            }
+        }
+
+        function rejectSubmission(id) {
+            const sub = submissions.find(s => s.id == id);
+            if (sub) {
+                sub.status = "Rejected";
+                syncSystemState();
+            }
+        }
+
+        function renderCheckerRankings() {
+            const body = document.getElementById("checkerRankTableBody");
+            let branchCheckers = userList.filter(u => u.role === "Checker");
+
+            if (currentUser && currentUser.role === "Checker") {
+                branchCheckers = branchCheckers.filter(u => u.branch === currentUser.branch);
+            }
+
+            const stats = branchCheckers.map(chk => {
+                const approvedByChk = submissions.filter(s => s.status === "Approved" && s.approvedBy === chk.name);
+                const totalVol = approvedByChk.reduce((acc, curr) => acc + curr.value, 0);
+                return {
+                    name: chk.name,
+                    branch: chk.branch,
+                    count: approvedByChk.length,
+                    totalVol: totalVol
+                };
+            });
+
+            stats.sort((a, b) => b.totalVol - a.totalVol);
+
+            body.innerHTML = stats.map((st, idx) => {
+                const isSelf = currentUser && currentUser.name === st.name;
+                return `
+                    <tr class="${isSelf ? 'highlight-row' : ''}">
+                        <td><span class="rank-badge">#${idx + 1}</span></td>
+                        <td>${st.name} ${isSelf ? '(You)' : ''}</td>
+                        <td>${st.branch}</td>
+                        <td>${st.count} entries</td>
+                        <td><strong>$${st.totalVol.toLocaleString()}</strong></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ================= MAKER CONTROLLERS =================
+        function renderMakerDashboards() {
+            if (!currentUser) return;
+
+            document.getElementById("makerUserDisplay").value = currentUser.name;
+            document.getElementById("makerDateInput").value = new Date().toISOString().split('T')[0];
+
+            const makerKpiSelect = document.getElementById("makerKpiSelect");
+            const myAllocations = makerAllocations.filter(a => a.maker === currentUser.name);
+            makerKpiSelect.innerHTML = myAllocations.map(a => `<option value="${a.kpi}">${a.kpi}</option>`).join('');
+
+            // Status Table
+            const statusBody = document.getElementById("makerStatusTable");
+            statusBody.innerHTML = myAllocations.map(a => {
+                const myApproved = submissions.filter(s => s.maker === currentUser.name && s.kpi === a.kpi && s.status === "Approved");
+                const actualVal = myApproved.reduce((sum, item) => sum + item.value, 0);
+                const pct = a.target > 0 ? ((actualVal / a.target) * 100).toFixed(1) : 0;
+
+                return `
+                    <tr>
+                        <td>${a.district}</td>
+                        <td>${a.branch}</td>
+                        <td>${a.kpi}</td>
+                        <td>$${a.target.toLocaleString()}</td>
+                        <td>$${actualVal.toLocaleString()}</td>
+                        <td><span class="badge ${pct >= 100 ? 'badge-approved' : 'badge-pending'}">${pct}%</span></td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Maker Leaderboard
+            const rankBody = document.getElementById("makerRankTableBody");
+            let branchMakers = userList.filter(u => u.role === "Maker" && u.branch === currentUser.branch);
+
+            const makerStats = branchMakers.map(m => {
+                const approved = submissions.filter(s => s.maker === m.name && s.status === "Approved");
+                const total = approved.reduce((sum, curr) => sum + curr.value, 0);
+
+                const allocs = makerAllocations.filter(a => a.maker === m.name);
+                const totalTarget = allocs.reduce((sum, curr) => sum + curr.target, 0);
+                const avgPct = totalTarget > 0 ? ((total / totalTarget) * 100).toFixed(1) : 0;
+
+                return { name: m.name, branch: m.branch, total, avgPct };
+            });
+
+            makerStats.sort((a, b) => b.total - a.total);
+
+            rankBody.innerHTML = makerStats.map((st, idx) => {
+                const isSelf = currentUser && currentUser.name === st.name;
+                return `
+                    <tr class="${isSelf ? 'highlight-row' : ''}">
+                        <td><span class="rank-badge">#${idx + 1}</span></td>
+                        <td>${st.name} ${isSelf ? '(You)' : ''}</td>
+                        <td>${st.branch}</td>
+                        <td><strong>$${st.total.toLocaleString()}</strong></td>
+                        <td>${st.avgPct}%</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function handleMakerSubmit(e) {
+            e.preventDefault();
+            const date = document.getElementById("makerDateInput").value;
+            const kpi = document.getElementById("makerKpiSelect").value;
+            const val = Number(document.getElementById("makerValueInput").value);
+
+            const alloc = makerAllocations.find(a => a.maker === currentUser.name && a.kpi === kpi);
+
+            submissions.push({
+                id: Date.now(),
+                district: alloc ? alloc.district : "Capital District",
+                branch: currentUser.branch || "Main Branch",
+                maker: currentUser.name,
+                kpi,
+                value: val,
+                date,
+                status: "Pending",
+                approvedBy: ""
+            });
+
+            alert("Performance entry logged successfully and sent to Checker for approval!");
+            document.getElementById("makerValueInput").value = "";
+            syncSystemState();
+        }
+
+        // Initialize App State
+        syncSystemState();
+    </script>
+</body>
+</html>
